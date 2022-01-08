@@ -1,0 +1,33 @@
+- name: "MySQL set root password"
+  become: yes
+  mysql_user:
+    login_user: "{{ mysql.user | default('root') }}"
+    login_password: "{{ mysql.password }}"
+    login_host: "{{ mysql.host | default('localhost') }}"
+    login_port: "{{ mysql.port | default('3306') }}"
+    user: "root"
+    password: "{{ icinga2.mysql.password }}"
+    host: "localhost"
+  when: use_local_db_instance
+
+- name: "Delete anonymous MySQL server user"
+  become: true
+  mysql_user:
+    login_user: "{{ mysql.user | default('root') }}"
+    login_password: "{{ mysql.password }}"
+    login_host: "{{ mysql.host | default('localhost') }}"
+    login_port: "{{ mysql.port | default('3306') }}"
+    user: ""
+    state: absent
+  when: use_local_db_instance
+
+- name: "Remove the MySQL test database"
+  become: true
+  mysql_db:
+    login_user: "{{ mysql.user | default('root') }}"
+    login_password: "{{ mysql.password }}"
+    login_host: "{{ mysql.host | default('localhost') }}"
+    login_port: "{{ mysql.port | default('3306') }}"
+    db: "test"
+    state: absent
+  when: use_local_db_instance
