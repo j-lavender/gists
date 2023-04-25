@@ -34,4 +34,4 @@ for ip_permission in response['SecurityGroups'][0]['IpPermissionsEgress']:
     destination_ec2.authorize_security_group_egress(GroupId=new_security_group['GroupId'], 
                                                     IpPermissions=[ip_permission])
 
-print("Security group copied successfully!")
+print(f"Security group copied successfully! New security group ID: {new_security_group['GroupId']}")
