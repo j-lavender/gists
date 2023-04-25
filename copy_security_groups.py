@@ -28,10 +28,23 @@ new_security_group = destination_ec2.create_security_group(GroupName=response['S
 
 # Add the inbound and outbound rules from the source security group to the new security group
 for ip_permission in response['SecurityGroups'][0]['IpPermissions']:
-    destination_ec2.authorize_security_group_ingress(GroupId=new_security_group['GroupId'], 
-                                                     IpPermissions=[ip_permission])
+    try:
+        destination_ec2.authorize_security_group_ingress(GroupId=new_security_group['GroupId'], 
+                                                         IpPermissions=[ip_permission])
+    except destination_ec2.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == 'InvalidPermission.Duplicate':
+            print(f"Rule already exists in new security group: {ip_permission}")
+        else:
+            raise e
+
 for ip_permission in response['SecurityGroups'][0]['IpPermissionsEgress']:
-    destination_ec2.authorize_security_group_egress(GroupId=new_security_group['GroupId'], 
-                                                    IpPermissions=[ip_permission])
+    try:
+        destination_ec2.authorize_security_group_egress(GroupId=new_security_group['GroupId'], 
+                                                        IpPermissions=[ip_permission])
+    except destination_ec2.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == 'InvalidPermission.Duplicate':
+            print(f"Rule already exists in new security group: {ip_permission}")
+        else:
+            raise e
 
 print(f"Security group copied successfully! New security group ID: {new_security_group['GroupId']}")
