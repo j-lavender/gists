@@ -1,0 +1,48 @@
+---
+- name: Install New Relic Agent on CentOS
+  hosts: localhost
+  remote_user: centos
+  become: true
+
+  vars:
+    newrelic_license_key: "YOUR_LICENSE_KEY_HERE"
+    newrelic_agent_name: "CUSTOM_AGENT_NAME"
+
+  tasks:
+    - name: Add New Relic yum repository
+      yum_repository:
+        name: newrelic
+        description: New Relic Yum Repository
+        baseurl: https://download.newrelic.com/infrastructure_agent/linux/yum/el/7/x86_64
+        gpgcheck: 1
+        gpgkey: https://download.newrelic.com/infrastructure_agent/gpg/newrelic-infra.gpg
+        enabled: 1
+
+    - name: Install New Relic agent
+      yum:
+        name: newrelic-infra
+        state: present
+
+    - name: Configure New Relic agent
+      lineinfile:
+        path: /etc/newrelic-infra.yml
+        regexp: "^license_key:"
+        line: "license_key: {{ newrelic_license_key }}"
+        state: present
+      notify:
+        - restart newrelic-infra
+
+    - name: Set New Relic agent name
+      lineinfile:
+        path: /etc/newrelic-infra.yml
+        regexp: "^display_name:"
+        line: "display_name: {{ newrelic_agent_name }}"
+        state: present
+      notify:
+        - restart newrelic-infra
+
+  handlers:
+    - name: restart newrelic-infra
+      service:
+        name: newrelic-infra
+        state: restarted
