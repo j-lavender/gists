@@ -1,0 +1,4 @@
+in-progress/
+*.test.*
+*.log
+logs/
