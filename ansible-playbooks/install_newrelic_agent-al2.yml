@@ -1,0 +1,58 @@
+---
+- name: Install New Relic Agent on Amazon Linux 2
+  hosts: localhost
+  remote_user: ec2-user
+  become: true
+
+  vars:
+    newrelic_license_key: "YOUR_LICENSE_KEY_HERE"
+    newrelic_agent_name: "CUSTOM_AGENT_NAME"
+
+  tasks:
+    - name: Add New Relic GPG key
+      rpm_key:
+        key: https://download.newrelic.com/infrastructure_agent/gpg/newrelic-infra.gpg
+        state: present
+
+    - name: Add New Relic YUM repository
+      yum_repository:
+        name: newrelic-infra
+        description: New Relic Infrastructure
+        baseurl: https://download.newrelic.com/infrastructure_agent/linux/yum/el/7/x86_64
+        gpgcheck: 1
+        gpgkey: https://download.newrelic.com/infrastructure_agent/gpg/newrelic-infra.gpg
+        enabled: 1
+
+    - name: Install New Relic agent
+      yum:
+        name: newrelic-infra
+        state: present
+
+    - name: Create New Relic configuration file
+      file:
+        path: /etc/newrelic-infra.yml
+        state: touch
+
+    - name: Configure New Relic agent
+      lineinfile:
+        path: /etc/newrelic-infra.yml
+        regexp: "^license_key:"
+        line: "license_key: {{ newrelic_license_key }}"
+        state: present
+      notify:
+        - restart newrelic-infra
+
+    - name: Set New Relic agent name
+      lineinfile:
+        path: /etc/newrelic-infra.yml
+        regexp: "^display_name:"
+        line: "display_name: {{ newrelic_agent_name }}"
+        state: present
+      notify:
+        - restart newrelic-infra
+
+  handlers:
+    - name: restart newrelic-infra
+      service:
+        name: newrelic-infra
+        state: restarted
