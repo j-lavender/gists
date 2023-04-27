@@ -1,0 +1,43 @@
+---
+- name: Install New Relic Agent on Ubuntu 20
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+
+  vars:
+    newrelic_license_key: "YOUR_LICENSE_KEY_HERE"
+
+  tasks:
+    - name: Add New Relic GPG key
+      apt_key:
+        url: https://download.newrelic.com/infrastructure_agent/gpg/newrelic-infra.gpg
+        state: present
+
+    - name: Add New Relic APT repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.newrelic.com/infrastructure_agent/linux/apt focal main
+        state: present
+
+    - name: Update APT package cache
+      apt:
+        update_cache: yes
+
+    - name: Install New Relic agent
+      apt:
+        name: newrelic-infra
+        state: present
+
+    - name: Configure New Relic agent
+      lineinfile:
+        path: /etc/newrelic-infra.yml
+        regexp: "^license_key:"
+        line: "license_key: {{ newrelic_license_key }}"
+        state: present
+      notify:
+        - restart newrelic-infra
+
+  handlers:
+    - name: restart newrelic-infra
+      service:
+        name: newrelic-infra
+        state: restarted
