@@ -3,12 +3,16 @@
 // credentials must be stored in ~/.aws/credentials before usage.
 // After running, press 'h' to view the help menu.
 // 
+// Dependencies:
+// 		go mod init aws-helpers
+// 		go get .
+// 
 // Use:
 // 		go run instances.go --profile default --region us-east-1
 // 
-// Build and Use: 
-// 		go build .
-// 		./instances --profile default --region us-east-1
+// Build:
+// 		go build instances.go
+// 		./instances -p default -r us-east-1
 
 
 package main
@@ -93,6 +97,7 @@ func initialDisplay(svc *ec2.EC2, list *tview.List, detailsTable *tview.Table) {
     fetchAndDisplayInstances("running", svc, list, detailsTable)
 }
 
+// Helper function to display the instance details.
 func displayInstanceDetails(table *tview.Table, instance *ec2.Instance) {
 	table.Clear()
 
@@ -101,6 +106,7 @@ func displayInstanceDetails(table *tview.Table, instance *ec2.Instance) {
 		"Field", "Value",
 	}
 
+	// Assign headers to table.
 	for col, header := range headers {
 		cell := tview.NewTableCell(header).
 			SetTextColor(tview.Styles.SecondaryTextColor).
@@ -141,6 +147,7 @@ func displayInstanceDetails(table *tview.Table, instance *ec2.Instance) {
 		"Subnet ID":         &instance.SubnetId,
 	}
 
+	// Add instance details to table.
 	row := 1
 	for _, field := range fields {
 		ptr := fieldMap[field]
@@ -153,7 +160,7 @@ func displayInstanceDetails(table *tview.Table, instance *ec2.Instance) {
 		row++
 	}
 
-	// Special cases
+	// Special cases that return non-string values.
 	table.SetCell(row, 0, tview.NewTableCell("Iam Instance Profile Arn"))
 	if instance.IamInstanceProfile != nil && instance.IamInstanceProfile.Arn != nil {
 		table.SetCell(row, 1, tview.NewTableCell(*instance.IamInstanceProfile.Arn))
@@ -176,6 +183,7 @@ func displayInstanceDetails(table *tview.Table, instance *ec2.Instance) {
 	}
 }
 
+// Helper function to start an instance.
 func startInstance(svc *ec2.EC2, instance *ec2.Instance) error {
 	input := &ec2.StartInstancesInput{
 		InstanceIds: []*string{
@@ -186,6 +194,7 @@ func startInstance(svc *ec2.EC2, instance *ec2.Instance) error {
 	return err
 }
 
+// Helper function to stop an instance.
 func stopInstance(svc *ec2.EC2, instance *ec2.Instance) error {
 	input := &ec2.StopInstancesInput{
 		InstanceIds: []*string{
@@ -196,6 +205,7 @@ func stopInstance(svc *ec2.EC2, instance *ec2.Instance) error {
 	return err
 }
 
+// Helper function to reboot an instance.
 func rebootInstance(svc *ec2.EC2, instance *ec2.Instance) error {
 	input := &ec2.RebootInstancesInput{
 		InstanceIds: []*string{
@@ -206,6 +216,7 @@ func rebootInstance(svc *ec2.EC2, instance *ec2.Instance) error {
 	return err
 }
 
+// Helper function to create a confirm prompt before action is taken.
 func confirmModal(title, text string, confirmFunc func()) {
 	modal := tview.NewModal().
 		SetText(text).
@@ -220,6 +231,7 @@ func confirmModal(title, text string, confirmFunc func()) {
 	app.SetRoot(modal, true)
 }
 
+// Helper function to display any AWS operation errors to the user.
 func handleEC2OperationResult(err error, successMsg string, list *tview.List, detailsTable *tview.Table) {
 	if err != nil {
 		// Show error modal
@@ -237,6 +249,7 @@ func handleEC2OperationResult(err error, successMsg string, list *tview.List, de
 }
 
 func main() {
+	// Require profile and region from the user.
 	flag.StringVar(&profile, "profile", "", "AWS Profile")
 	flag.StringVar(&profile, "p", "", "AWS Profile (shorthand)")
 	flag.StringVar(&region, "region", "", "AWS Region")
@@ -248,6 +261,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Establish AWS connection.
 	sess, err := session.NewSessionWithOptions(session.Options{
 		Profile: profile,
 		Config: aws.Config{
@@ -260,6 +274,7 @@ func main() {
 
 	svc := ec2.New(sess)
 
+	// Create the application.
 	app = tview.NewApplication()
 	list := tview.NewList().ShowSecondaryText(false)
 	detailsTable := tview.NewTable().SetBorders(true)
@@ -268,16 +283,19 @@ func main() {
 
 	initialDisplay(svc, list, detailsTable)
 
+	// Changed function to keep index and currentInstances slice in sync during user navigation.
 	list.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
 		if index >= 0 && index < len(currentInstances) {
 			displayInstanceDetails(detailsTable, currentInstances[index]) 
 		}
 	})
 
+	// Global view and add instance information.
 	flex = tview.NewFlex().
 	AddItem(list, 0, 1, true).
 	AddItem(detailsTable, 0, 2, false)
 
+	// Create the help modal.
 	helpModal := tview.NewModal().
 	SetText("Keyboard Commands:\n\nh - Show this help menu\nq - Quit the program\nr - Display running instances\na - Display all instances\ns - Display stopped instances\nt - Display terminated instances\n'S'(Shift+S) - Start instance.\n'X'(Shift+X) - Stop instance.\n'R'(Shift+r) - Reboot instance.").
 		AddButtons([]string{"Close"}).
@@ -287,42 +305,43 @@ func main() {
 			}
 		})
 
+	// Assign keybindings.
 	app.SetRoot(flex, true).
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Key() {
 			case tcell.KeyRune:
 				switch event.Rune() {
-				case 'h':
+				case 'h': // Display help modal.
 					app.SetRoot(helpModal, true)
 					return nil
-				case 'q':
+				case 'q': // Quit the application.
 					app.Stop()
-				case 'r':
+				case 'r': // Display running instances
 					fetchAndDisplayInstances("running", svc, list, detailsTable)
 					return nil
-				case 'a':
+				case 'a': // Display any(all) instances.
 					fetchAndDisplayInstances("any", svc, list, detailsTable)
 					return nil
-				case 's':
+				case 's': // Display terminated instances.
 					fetchAndDisplayInstances("stopped", svc, list, detailsTable)
 					return nil
-				case 't':
+				case 't': // Display terminated instances.
 					fetchAndDisplayInstances("terminated", svc, list, detailsTable)
 					return nil
-				case 'S': // Start Instance
+				case 'S': // Start Instance.
 					confirmModal("Start Instance", "Are you sure you want to start the instance?", func() {
 						fmt.Println("Executing start instance command")
 						err := startInstance(svc, currentInstances[list.GetCurrentItem()])
 						handleEC2OperationResult(err, "Successfully started the instance.", list, detailsTable)
 					})
 					return nil
-				case 'X': // Stop Instance
+				case 'X': // Stop Instance.
 					confirmModal("Stop Instance", "Are you sure you want to stop the instance?", func() {
 						err := stopInstance(svc, currentInstances[list.GetCurrentItem()])
 						handleEC2OperationResult(err, "Successfully stopped the instance.", list, detailsTable)
 					})
 					return nil
-				case 'R': // Reboot Instance
+				case 'R': // Reboot Instance.
 					confirmModal("Reboot Instance", "Are you sure you want to reboot the instance?", func() {
 						err := rebootInstance(svc, currentInstances[list.GetCurrentItem()])
 						handleEC2OperationResult(err, "Successfully rebooted the instance.", list, detailsTable)
@@ -331,7 +350,8 @@ func main() {
 			}
 			return event
 		})
-
+	
+	// Exit the application on panic.
 	if err := app.Run(); err != nil {
 		panic(err)
 	}
