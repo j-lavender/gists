@@ -51,35 +51,38 @@ func getInstanceName(instance *ec2.Instance) string {
 
 // Helper function to filter the displayed instances by filtered state.
 func fetchAndDisplayInstances(state string, svc *ec2.EC2, list *tview.List, detailsTable *tview.Table) {
-    var filterName string
-    switch state {
-    case "running":
-        filterName = "running"
-    case "stopped":
-        filterName = "stopped"
-    case "terminated":
-        filterName = "terminated"
-    default:
-        filterName = "any"
+	// Init params struct to pass to AWS SDK.
+	params := &ec2.DescribeInstancesInput{}
+
+	// Validate provided state.
+    validStates := map[string]bool{
+        "running":    true,
+        "stopped":    true,
+        "terminated": true,
     }
 
-    params := &ec2.DescribeInstancesInput{}
-    if filterName != "any" {
+	// If a valid state is provided, then set the filter, else fetch all instances.
+	// If not, no filter is set and all instances will be fetched.
+    if validStates[state] {
         params.Filters = []*ec2.Filter{
             {
                 Name:   aws.String("instance-state-name"),
-                Values: []*string{aws.String(filterName)},
+                Values: []*string{aws.String(state)},
             },
         }
     }
 
+	// Log error if API call to fetch instances fails.
     resp, err := svc.DescribeInstances(params)
     if err != nil {
         log.Fatalf("Failed to retrieve EC2 instances: %s", err)
     }
 
+	// Clear the current list and set currentInstances slice to zero.
     list.Clear()
 	currentInstances = nil
+
+	// Use filter state to fetch instance list and append to currentInstances slice.
     for _, res := range resp.Reservations {
         for _, instance := range res.Instances {
             currentInstances = append(currentInstances, instance)
@@ -87,7 +90,11 @@ func fetchAndDisplayInstances(state string, svc *ec2.EC2, list *tview.List, deta
         }
     }
 
-    if len(currentInstances) > 0 {
+	// If no instances exist for filter, clear the instanceDetails table. Otherwise display details for the first instance found.
+	if len(currentInstances) == 0 {
+        detailsTable.Clear()
+        detailsTable.SetCell(0, 0, tview.NewTableCell("No instance details to display").SetAlign(tview.AlignCenter))
+    } else {
         displayInstanceDetails(detailsTable, currentInstances[0])
     }
 }
