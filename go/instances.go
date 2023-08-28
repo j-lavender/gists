@@ -256,16 +256,30 @@ func handleEC2OperationResult(err error, successMsg string, list *tview.List, de
 }
 
 func main() {
-	// Require profile and region from the user.
-	flag.StringVar(&profile, "profile", "", "AWS Profile")
-	flag.StringVar(&profile, "p", "", "AWS Profile (shorthand)")
-	flag.StringVar(&region, "region", "", "AWS Region")
-	flag.StringVar(&region, "r", "", "AWS Region (shorthand)")
+	// Allow for profile and region from the user. Defaults provided.
+	// Custom usage function for the flag package. Create a CLI help flag.
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		fmt.Println(`
+	This script is an AWS EC2 Instance Viewer and Manager.
+	View instance details, as well as stop, start, and reboot instances.
+
+	Available options are:
+
+	`)
+		flag.PrintDefaults()
+	}
+
+	// AWS Profile and Region flags. Defaults provided.
+	flag.StringVar(&profile, "profile", "default", "AWS Profile")
+	flag.StringVar(&profile, "p", "default", "AWS Profile (shorthand)")
+	flag.StringVar(&region, "region", "us-east-1", "AWS Region")
+	flag.StringVar(&region, "r", "us-east-1", "AWS Region (shorthand)")
 	flag.Parse()
 
-	if profile == "" || region == "" {
-		fmt.Println("Both --profile (-p) and --region (-r) are required.")
-		os.Exit(1)
+	// If "help" flag passed, provide usage information above and exit.
+	if flag.Lookup("help") != nil && flag.Lookup("help").Value.String() == "true" {
+		os.Exit(0)
 	}
 
 	// Establish AWS connection.
