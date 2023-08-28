@@ -101,7 +101,7 @@ func fetchAndDisplayInstances(state string, svc *ec2.EC2, list *tview.List, deta
 
 // Helper function to display the instance details of the first instance in the list. Function executes when application first loads.
 func initialDisplay(svc *ec2.EC2, list *tview.List, detailsTable *tview.Table) {
-    fetchAndDisplayInstances("running", svc, list, detailsTable)
+    fetchAndDisplayInstances("", svc, list, detailsTable)
 }
 
 // Helper function to display the instance details.
